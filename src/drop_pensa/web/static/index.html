@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#050c14" />
+  <meta name="description" content="drop.pensa.ar — instant file drop. Upload a file, get a temporary public URL." />
+  <title>drop.pensa.ar</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <img src="/static/favicon.svg" alt="" class="brand-logo" />
+      <span class="brand-name">drop.pensa.ar</span>
+    </a>
+    <nav class="nav-links">
+      <a href="/about">about</a>
+      <a href="/api">api</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <span class="hero-badge">file drop</span>
+      <h1 class="hero-title">Drop a file, get a link.</h1>
+      <p class="hero-sub">Temporary public URL. Auto-expires. No account.</p>
+    </section>
+
+    <!-- UPLOAD VIEW -->
+    <section id="upload-view" class="card">
+      <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Choose a file or drop one here">
+        <input type="file" id="file-input" hidden />
+        <div class="dz-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="dz-text">
+          <strong>Click to choose a file</strong>
+          <span class="dz-hint">or drop one here</span>
+        </div>
+      </div>
+
+      <div class="opts">
+        <fieldset class="opt-group">
+          <legend>Expires in</legend>
+          <div class="pills" role="radiogroup">
+            <input type="radio" name="ttl" id="ttl-1h" value="3600" checked />
+            <label for="ttl-1h">1 hour</label>
+            <input type="radio" name="ttl" id="ttl-6h" value="21600" />
+            <label for="ttl-6h">6 hours</label>
+            <input type="radio" name="ttl" id="ttl-1d" value="86400" />
+            <label for="ttl-1d">24 hours</label>
+            <input type="radio" name="ttl" id="ttl-7d" value="604800" />
+            <label for="ttl-7d">7 days</label>
+          </div>
+        </fieldset>
+
+        <label class="checkbox">
+          <input type="checkbox" id="one-shot" />
+          <span>Delete after first download</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- PROGRESS VIEW -->
+    <section id="progress-view" class="card hidden">
+      <div class="progress-head">
+        <span id="progress-name" class="progress-name">filename</span>
+        <button id="cancel-btn" class="btn-ghost" type="button">cancel</button>
+      </div>
+      <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+      <div class="progress-meta">
+        <span id="progress-pct">0%</span>
+        <span id="progress-rate">—</span>
+      </div>
+    </section>
+
+    <!-- RESULT VIEW -->
+    <section id="result-view" class="card hidden">
+      <div class="result-url-row">
+        <input id="result-url" type="text" readonly />
+        <button id="copy-btn" class="btn-primary" type="button">copy</button>
+      </div>
+
+      <div class="result-grid">
+        <div class="result-meta">
+          <div class="meta-row"><span class="meta-k">filename</span><span id="meta-filename" class="meta-v"></span></div>
+          <div class="meta-row"><span class="meta-k">size</span><span id="meta-size" class="meta-v"></span></div>
+          <div class="meta-row"><span class="meta-k">sha256</span><span id="meta-sha" class="meta-v mono ellipsis"></span></div>
+          <div class="meta-row"><span class="meta-k">expires</span><span id="meta-expires" class="meta-v"></span></div>
+        </div>
+        <div class="result-qr">
+          <div id="qr-code" aria-label="QR code for the URL"></div>
+        </div>
+      </div>
+
+      <div class="result-actions">
+        <button id="delete-btn" class="btn-ghost" type="button">delete now</button>
+        <button id="new-btn" class="btn-secondary" type="button">drop another file</button>
+      </div>
+    </section>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <span class="footer-tag">drop.pensa.ar</span>
+      <nav class="footer-links">
+        <a href="/about">about</a>
+        <a href="/api">api</a>
+        <a href="/privacy">privacy</a>
+        <a href="/terms">terms</a>
+        <a href="https://github.com/pensados/drop-pensa" target="_blank" rel="noopener">github</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/static/qrcode.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

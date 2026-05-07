@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}about · drop.pensa.ar{% endblock %}
+{% block description %}drop.pensa.ar is an instant file drop service. Upload a file, share a temporary URL, it auto-expires.{% endblock %}
+
+{% block content %}
+<article>
+  <h1>About</h1>
+
+  <p class="lead">
+    drop.pensa.ar is a file drop service. You upload a file, you get back
+    a public URL, and the file expires after a window you choose. The URL
+    is the secret — anyone with the URL can fetch the file until it
+    expires or you delete it.
+  </p>
+
+  <h2>Why this exists</h2>
+  <p>
+    There are two main use cases this serves. The first is human:
+    sometimes you want to send someone a file in a chat, an email, or a
+    message, and you don't want to attach a 30 MB binary or sign up for a
+    file-sharing service. You drop the file here, copy the link, paste it,
+    move on. The second is automation: scripts, AI agents, and CI tasks
+    often need to expose a file briefly — a build artifact, a generated
+    report, a screenshot. A POST returns a URL, the URL gets fetched once
+    or twice, and the file disappears.
+  </p>
+  <p>
+    Both cases want the same thing: low friction, predictable expiry,
+    nothing to clean up.
+  </p>
+
+  <h2>How it works</h2>
+  <ul>
+    <li>You pick a retention window — 1 hour, 6 hours, 24 hours, or 7 days.</li>
+    <li>You optionally mark the file as <em>delete after first download</em>.</li>
+    <li>The server stores it on disk, generates a hard-to-guess ID, and returns a URL.</li>
+    <li>Anyone with the URL can fetch the file. Without the URL, the file is unreachable — IDs have around 78 bits of entropy, so they're not guessable.</li>
+    <li>When the window elapses, a background worker deletes the file from disk and the database row.</li>
+  </ul>
+
+  <h2>What it isn't</h2>
+  <p>
+    drop.pensa.ar is <strong>not</strong> end-to-end encrypted. The server
+    can read the file. If the contents are sensitive, encrypt before
+    uploading or use a different tool.
+  </p>
+  <p>
+    It's also not a hosting service. HTML and SVG files are served as
+    plain text to neutralize XSS. Don't try to host a website here.
+  </p>
+  <p>
+    There's a 50 MB per-file limit. For larger files, look elsewhere.
+  </p>
+
+  <h2>Compared to similar tools</h2>
+  <table class="compare">
+    <thead>
+      <tr><th></th><th>drop.pensa.ar</th><th>transfer.sh</th><th>0x0.st</th><th>file.io</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Max size</td><td>50 MB</td><td>10 GB</td><td>512 MB</td><td>2 GB</td></tr>
+      <tr><td>Auto-expiry</td><td>1h–7d (chosen)</td><td>14 days</td><td>variable</td><td>14 days</td></tr>
+      <tr><td>One-shot mode</td><td>yes</td><td>no</td><td>no</td><td>yes</td></tr>
+      <tr><td>Delete-by-token</td><td>yes</td><td>limited</td><td>via token</td><td>via key</td></tr>
+      <tr><td>Web UI</td><td>yes</td><td>no</td><td>no</td><td>yes</td></tr>
+      <tr><td>Self-hosted</td><td>yes</td><td>yes</td><td>yes</td><td>no</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Source code</h2>
+  <p>
+    The whole service is open source under the MIT license. Code at
+    <a href="https://github.com/pensados/drop-pensa" target="_blank" rel="noopener">github.com/pensados/drop-pensa</a>.
+    Issues, PRs, and forks welcome.
+  </p>
+</article>
+{% endblock %}

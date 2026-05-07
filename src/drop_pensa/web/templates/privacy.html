@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}privacy · drop.pensa.ar{% endblock %}
+{% block description %}Privacy policy for drop.pensa.ar — what we log, what we don't, and how long we keep it.{% endblock %}
+
+{% block content %}
+<article>
+  <h1>Privacy</h1>
+
+  <p class="lead">
+    The short version: we don't log your file contents, we don't sell
+    anything, we don't track you across the web. We log enough to operate
+    the service and investigate abuse. Files are deleted on the schedule
+    you choose.
+  </p>
+
+  <h2>What gets stored</h2>
+  <p>For each upload, we record:</p>
+  <ul>
+    <li>The file itself, on disk, until it expires or is deleted.</li>
+    <li>Its filename, size, content-type, and SHA-256 hash.</li>
+    <li>The IP address of the uploader.</li>
+    <li>Timestamps for upload, expiry, and most recent fetch.</li>
+    <li>A SHA-256 hash of the delete token (never the token itself).</li>
+  </ul>
+
+  <h2>What does <em>not</em> get stored</h2>
+  <ul>
+    <li>The contents of files in any log or index. Files exist only on disk, in their raw form.</li>
+    <li>The delete token in plaintext. Only its hash. If you lose the token, the file can't be deleted on demand — it'll still expire automatically.</li>
+    <li>Cookies, sessions, or any client-side storage. The web UI keeps state only in memory while the page is open.</li>
+    <li>Third-party analytics, fingerprints, ad pixels, or social embeds.</li>
+  </ul>
+
+  <h2>How long things are kept</h2>
+  <ul>
+    <li><strong>Uploaded files</strong>: until the expiry window you chose (1 hour to 7 days). One-shot files are deleted on first fetch.</li>
+    <li><strong>Database rows</strong>: soft-deleted on expiry, hard-deleted 24 hours later by the cleanup worker.</li>
+    <li><strong>Logs</strong>: structured JSON access logs, kept for 30 days, then rotated. Used for abuse investigation only.</li>
+    <li><strong>Backups</strong>: none. If a file is deleted or expired, it's gone.</li>
+  </ul>
+
+  <h2>Why we log IPs</h2>
+  <p>
+    Two reasons. First, to enforce rate limits (30 uploads per hour per
+    IP, etc.) so one client can't crowd out everyone else. Second, to
+    investigate abuse — if someone uses the service to distribute
+    malware or illegal content, we may share the upload IP with the
+    relevant authorities under applicable law.
+  </p>
+  <p>
+    We do not share IPs or any other data for commercial purposes.
+  </p>
+
+  <h2>Your URL is your secret</h2>
+  <p>
+    The file URL contains a random ID with about 78 bits of entropy.
+    That's far more than enough to make guessing infeasible. <strong>But</strong>
+    anyone you give the URL to can fetch the file. If you paste it in a
+    public chat, indexers will find it. If you DM it to one person, only
+    they can fetch it.
+  </p>
+  <p>
+    For sensitive content, use one-shot mode and delete the file from
+    the recipient's view after they confirm receipt.
+  </p>
+
+  <h2>Cookies</h2>
+  <p>None. The site sets no cookies, period.</p>
+
+  <h2>Contact</h2>
+  <p>
+    For privacy questions or data requests, email
+    <a href="mailto:carlos@pensa.com.ar">carlos@pensa.com.ar</a>.
+  </p>
+
+  <p class="footnote">
+    Service operated by Carlos Torres Pensa, Argentina. The service is
+    free to use and provided without warranty.
+  </p>
+</article>
+{% endblock %}

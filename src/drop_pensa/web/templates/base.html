@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#050c14" />
+  <meta name="description" content="{% block description %}drop.pensa.ar — instant file drop service{% endblock %}" />
+  <title>{% block title %}drop.pensa.ar{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  {% include "_header.html" %}
+
+  <main class="wrap doc">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% include "_footer.html" %}
+</body>
+</html>

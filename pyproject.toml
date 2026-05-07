@@ -1,0 +1,41 @@
+[project]
+name = "drop-pensa"
+version = "0.1.0"
+description = "Instant file drop service with web UI"
+requires-python = ">=3.12"
+authors = [{name = "Carlos Pensa", email = "carlos@pensa.com.ar"}]
+license = {text = "MIT"}
+
+dependencies = [
+    "fastapi==0.104.1",
+    "uvicorn[standard]==0.24.0",
+    "pydantic-settings==2.1.0",
+    "python-magic==0.4.27",
+    "sqlalchemy==2.0.23",
+    "alembic==1.12.1",
+    "aiosqlite==0.19.0",
+    "python-multipart==0.0.6",
+    "redis==5.0.1",
+    "jinja2==3.1.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==7.4.3",
+    "pytest-asyncio==0.21.1",
+    "httpx==0.25.2",
+    "ruff==0.1.8",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = "test_*.py"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"

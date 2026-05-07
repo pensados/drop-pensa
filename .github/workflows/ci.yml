@@ -1,0 +1,112 @@
+# CI for drop-pensa.
+#
+# Runs on every push to main and every pull request. Three independent
+# jobs so failures are easy to diagnose:
+# - lint: ruff over src/ and tests/
+# - test: build the test image, run the pytest suite
+# - build: build the production image (no publish — we tag releases by hand)
+#
+# Publishing to ghcr.io is wired up but only fires on tag pushes, so
+# day-to-day commits don't push image versions.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+# Cancel older runs of the same branch when a new commit lands. Keeps
+# the actions queue honest when several pushes arrive close together.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: install ruff
+        run: pip install ruff==0.1.8
+
+      - name: ruff check
+        run: ruff check src tests
+
+  test:
+    name: pytest (75 tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build the test image with build cache so reruns are quick.
+      - name: build test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.test
+          load: true
+          tags: drop-pensa-test:ci
+          cache-from: type=gha,scope=test
+          cache-to: type=gha,scope=test,mode=max
+
+      - name: run tests
+        run: docker run --rm drop-pensa-test:ci
+
+  build:
+    name: build prod image
+    runs-on: ubuntu-latest
+    # Build on every push, but only publish when a version tag is pushed.
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Login to ghcr only when we're going to publish (tag push).
+      - name: login to ghcr.io
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: derive image tags
+        id: tags
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE="ghcr.io/${OWNER}/drop-pensa"
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "tags=${IMAGE}:${VERSION},${IMAGE}:latest" >> "$GITHUB_OUTPUT"
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=${IMAGE}:ci-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: build (and push if tag)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: ${{ steps.tags.outputs.push == 'true' }}
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha,scope=prod
+          cache-to: type=gha,scope=prod,mode=max

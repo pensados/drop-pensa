@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  drop-pensa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: drop-pensa-dev
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - .:/app
+      - drop-storage-dev:/var/lib/drop-pensa
+    environment:
+      - DEBUG=true
+      - STORAGE_DIR=/var/lib/drop-pensa/files
+      - DB_URL=sqlite:////var/lib/drop-pensa/drop.db
+      - MAX_FILE_SIZE_MB=50
+      - DEFAULT_TTL_SECONDS=3600
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - drop-network-dev
+    restart: unless-stopped
+    command: ["python", "-m", "uvicorn", "drop_pensa.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz', timeout=3).status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    container_name: drop-redis-dev
+    networks:
+      - drop-network-dev
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  drop-storage-dev:
+    driver: local
+
+networks:
+  drop-network-dev:
+    driver: bridge

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}api · drop.pensa.ar{% endblock %}
+{% block description %}HTTP API reference for drop.pensa.ar{% endblock %}
+
+{% block content %}
+<article>
+  <h1>API</h1>
+
+  <p class="lead">
+    The HTTP API is small enough to fit on this page. All endpoints
+    return JSON unless they're streaming a file. Base URL is
+    <code>https://drop.pensa.ar</code>.
+  </p>
+
+  <h2 id="upload">POST /upload</h2>
+  <p>Upload a file. <code>multipart/form-data</code> with a <code>file</code> field.</p>
+
+  <h3>Parameters</h3>
+  <p>All optional. Accepted as form fields or query params (query wins).</p>
+  <table class="api">
+    <thead><tr><th>Name</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>expires_in</code></td><td>int (seconds)</td><td><code>3600</code></td><td>How long the file lives. Max <code>604800</code> (7 days).</td></tr>
+      <tr><td><code>one_shot</code></td><td>bool</td><td><code>false</code></td><td>If true, delete after the first successful fetch.</td></tr>
+      <tr><td><code>filename</code></td><td>string</td><td>—</td><td>Override the uploaded filename. Sanitized.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Example</h3>
+  <pre><code>curl -F "file=@report.pdf" \
+  "https://drop.pensa.ar/upload?expires_in=86400&amp;one_shot=true"</code></pre>
+
+  <h3>Response — <code>201 Created</code></h3>
+  <pre><code>{
+  "url":           "https://drop.pensa.ar/f/aB3xK9-mnP2qR/report.pdf",
+  "id":            "aB3xK9-mnP2qR",
+  "filename":      "report.pdf",
+  "size_bytes":    26817,
+  "sha256":        "66fef8...",
+  "content_type":  "application/pdf",
+  "expires_at":    "2026-05-08T22:00:00Z",
+  "expires_in_seconds": 86400,
+  "delete_url":    "https://drop.pensa.ar/f/aB3xK9-mnP2qR?token=zT8w...",
+  "one_shot":      true
+}</code></pre>
+
+  <p class="note">
+    Save the <code>delete_url</code> if you want to be able to delete
+    the file later. The token is shown <em>once</em> and never recoverable.
+  </p>
+
+  <h3>Errors</h3>
+  <ul>
+    <li><code>400</code> — invalid filename, bad <code>expires_in</code></li>
+    <li><code>413</code> — file exceeds 50 MB limit</li>
+    <li><code>415</code> — file extension is blocked (e.g. <code>.exe</code>)</li>
+    <li><code>429</code> — rate limited (30 uploads/hour per IP)</li>
+  </ul>
+
+  <h2 id="fetch">GET /f/{id}/{filename}</h2>
+  <p>Download the file. Streams the body with the original content-type
+  (HTML and SVG are downgraded to <code>text/plain</code> for safety).</p>
+
+  <h3>Query params</h3>
+  <table class="api">
+    <thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>download</code></td><td>0 or 1</td><td>If <code>1</code>, force <code>Content-Disposition: attachment</code>.</td></tr>
+      <tr><td><code>render</code></td><td>0 or 1</td><td>If <code>1</code>, serve HTML/SVG with their real type. Unsafe.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Example</h3>
+  <pre><code>curl -O "https://drop.pensa.ar/f/aB3xK9-mnP2qR/report.pdf?download=1"</code></pre>
+
+  <h3>Errors</h3>
+  <ul>
+    <li><code>404</code> — file not found, expired, or one-shot already consumed</li>
+    <li><code>429</code> — rate limited (200 fetches/min per IP, 100/hour per file per IP)</li>
+  </ul>
+
+  <h2 id="head">HEAD /f/{id}/{filename}</h2>
+  <p>Same as GET but returns headers only. Useful for liveness probes.</p>
+
+  <h2 id="info">GET /f/{id}/info</h2>
+  <p>Return public metadata without serving the body.</p>
+
+  <h3>Example</h3>
+  <pre><code>curl https://drop.pensa.ar/f/aB3xK9-mnP2qR/info</code></pre>
+
+  <pre><code>{
+  "id":            "aB3xK9-mnP2qR",
+  "filename":      "report.pdf",
+  "size_bytes":    26817,
+  "sha256":        "66fef8...",
+  "content_type":  "application/pdf",
+  "created_at":    "2026-05-07T22:00:00Z",
+  "expires_at":    "2026-05-08T22:00:00Z",
+  "one_shot":      true,
+  "fetched_count": 0
+}</code></pre>
+
+  <h2 id="delete">DELETE /f/{id}?token={delete_token}</h2>
+  <p>Delete a file by ID, authorized by the delete token returned at upload.</p>
+
+  <h3>Example</h3>
+  <pre><code>curl -X DELETE "https://drop.pensa.ar/f/aB3xK9-mnP2qR?token=zT8w..."</code></pre>
+
+  <h3>Response — <code>200 OK</code></h3>
+  <pre><code>{ "deleted": true, "already": false, "id": "aB3xK9-mnP2qR" }</code></pre>
+
+  <p>
+    Idempotent. Calling delete on an already-deleted file with the same
+    token returns <code>200</code> with <code>already: true</code>.
+  </p>
+
+  <h3>Errors</h3>
+  <ul>
+    <li><code>403</code> — invalid or missing token, or file unknown (responses are indistinguishable to prevent ID enumeration)</li>
+    <li><code>429</code> — rate limited</li>
+  </ul>
+
+  <h2 id="health">GET /healthz</h2>
+  <p>Health check.</p>
+  <pre><code>{ "ok": true, "files_count": 12, "storage_used_mb": 18.7 }</code></pre>
+
+  <h2 id="ratelimits">Rate limits</h2>
+  <ul>
+    <li><strong>Uploads</strong>: 30/hour per IP. Stricter (10/hour) for cross-origin browser callers.</li>
+    <li><strong>Fetches</strong>: 200/minute per IP, plus 100/hour per <code>(file_id, IP)</code> pair.</li>
+    <li><strong>Deletes</strong>: 60/hour per IP.</li>
+  </ul>
+  <p>Exceeding any of these returns <code>429</code>. Wait, then retry.</p>
+</article>
+{% endblock %}
