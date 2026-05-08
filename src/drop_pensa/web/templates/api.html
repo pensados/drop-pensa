@@ -75,7 +75,8 @@
 
   <h3>Errors</h3>
   <ul>
-    <li><code>404</code> — file not found, expired, or one-shot already consumed</li>
+    <li><code>404</code> — file not found, expired, or filename mismatch</li>
+    <li><code>410</code> — one-shot file already consumed</li>
     <li><code>429</code> — rate limited (200 fetches/min per IP, 100/hour per file per IP)</li>
   </ul>
 

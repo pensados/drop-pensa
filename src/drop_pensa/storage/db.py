@@ -161,8 +161,11 @@ class DbStore:
     def get_raw(self, file_id: str) -> dict | None:
         """
         Return the raw DB row including soft-delete state and the delete
-        token hash. Used by the DELETE endpoint, which needs to validate
-        the token even on already-deleted rows so deletes stay idempotent.
+        token hash. Used by:
+        - DELETE endpoint, which validates the token even on already-deleted
+          rows so deletes stay idempotent.
+        - GET endpoint, which distinguishes "consumed one-shot" (410) from
+          "unknown id" (404).
         """
         stmt = select(files).where(files.c.id == file_id)
         row = self.s.execute(stmt).first()
@@ -174,6 +177,7 @@ class DbStore:
             "delete_token_hash": row.delete_token_hash,
             "deleted_at": row.deleted_at,
             "expires_at": row.expires_at,
+            "one_shot": bool(row.one_shot),
         }
 
     def mark_fetched(self, file_id: str) -> None:

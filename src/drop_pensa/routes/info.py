@@ -40,7 +40,20 @@ async def info(
 
     store = DbStore(session)
     meta = store.get(file_id)
-    if meta is None or meta.expires_at <= now_utc():
+    if meta is None:
+        # Distinguish a consumed one-shot (410 Gone) from an unknown id
+        # (404). Info doesn't take a filename, so we don't need to match
+        # one — anyone who knows the id has earned the more informative
+        # status code.
+        raw = store.get_raw(file_id)
+        if (
+            raw is not None
+            and raw["deleted_at"] is not None
+            and raw.get("one_shot") is True
+        ):
+            raise HTTPException(status_code=410, detail="consumed")
+        raise HTTPException(status_code=404, detail="not found")
+    if meta.expires_at <= now_utc():
         raise HTTPException(status_code=404, detail="not found")
 
     return {

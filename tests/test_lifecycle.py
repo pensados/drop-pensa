@@ -157,6 +157,7 @@ def test_expired_file_returns_404(client, upload_one):
 
 
 def test_one_shot_consumes_after_first_fetch(client, upload_one):
+    """A consumed one-shot returns 410 Gone (RFC 9110, issue #2)."""
     payload = upload_one(one_shot=True)
     assert payload["one_shot"] is True
 
@@ -164,7 +165,44 @@ def test_one_shot_consumes_after_first_fetch(client, upload_one):
     assert first.status_code == 200
 
     second = client.get(f"/f/{payload['id']}/{payload['filename']}")
-    assert second.status_code == 404
+    assert second.status_code == 410
+    assert second.json()["detail"] == "consumed"
+
+
+def test_one_shot_consumed_410_only_with_correct_filename(client, upload_one):
+    """410 must require the right filename, otherwise 404 (no enumeration)."""
+    payload = upload_one(one_shot=True)
+    client.get(f"/f/{payload['id']}/{payload['filename']}")  # consume
+
+    # Right id, wrong filename → 404, not 410
+    resp = client.get(f"/f/{payload['id']}/wrong-name.txt")
+    assert resp.status_code == 404
+
+
+def test_one_shot_consumed_info_returns_410(client, upload_one):
+    """/info also returns 410 on a consumed one-shot."""
+    payload = upload_one(one_shot=True)
+    client.get(f"/f/{payload['id']}/{payload['filename']}")  # consume
+
+    info = client.get(f"/f/{payload['id']}/info")
+    assert info.status_code == 410
+
+
+def test_normal_expired_returns_404_not_410(client, upload_one):
+    """A non-one-shot file that expired returns 404, not 410."""
+    from drop_pensa.storage.db import session_scope
+    from drop_pensa.models import files as files_t
+
+    payload = upload_one(one_shot=False)
+    with session_scope() as sess:
+        sess.execute(
+            files_t.update()
+            .where(files_t.c.id == payload["id"])
+            .values(expires_at="2000-01-01T00:00:00+00:00")
+        )
+
+    resp = client.get(f"/f/{payload['id']}/{payload['filename']}")
+    assert resp.status_code == 404
 
 
 def test_one_shot_no_store_cache_header(client, upload_one):

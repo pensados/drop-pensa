@@ -27,10 +27,35 @@ def _safe_content_type(detected: str, render: bool) -> str:
 
 
 def _check_meta(store: DbStore, file_id: str, filename: str):
-    """Common preconditions for fetch/head. Raises 404 as appropriate."""
+    """
+    Common preconditions for fetch/head/info.
+
+    Raises 410 Gone when a one-shot upload has been consumed (RFC 9110
+    §15.5.21): the resource intentionally exists no more. Otherwise 404
+    for everything else (unknown id, expired, filename mismatch),
+    which preserves the no-enumeration property — an attacker without
+    the matching filename only ever sees 404.
+    """
     meta = store.get(file_id)
     if meta is None:
+        # Could be: never existed, expired, soft-deleted, or one-shot
+        # consumed. Peek at the raw row to tell consumed-one-shot apart
+        # from the rest, since that's the only case where 410 is correct.
+        raw = store.get_raw(file_id)
+        if (
+            raw is not None
+            and raw["deleted_at"] is not None
+            and filename == raw["filename"]
+            # The DB row doesn't carry one_shot in get_raw's projection,
+            # but we can infer: a soft-deleted row whose deleted_at is
+            # very close to its expires_at is a normal expiry, while one
+            # whose deleted_at is well before is a one-shot consumption.
+            # Cleaner: extend get_raw to include one_shot. We do that.
+            and raw.get("one_shot") is True
+        ):
+            raise HTTPException(status_code=410, detail="consumed")
         raise HTTPException(status_code=404, detail="not found")
+
     if filename != meta.filename:
         raise HTTPException(status_code=404, detail="not found")
     if meta.expires_at <= now_utc():
