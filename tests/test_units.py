@@ -55,13 +55,20 @@ def test_sanitize_filename_rejects(evil):
         sanitize_filename(evil)
 
 
-def test_sanitize_filename_truncates_long_names():
+def test_sanitize_filename_rejects_long_names():
+    """Filenames over MAX_FILENAME_LENGTH must be rejected, not truncated."""
+    import pytest
     from drop_pensa.security import MAX_FILENAME_LENGTH, sanitize_filename
-    # Long stem with a normal extension — extension should survive.
-    name = "a" * 500 + ".txt"
-    out = sanitize_filename(name)
-    assert len(out) <= MAX_FILENAME_LENGTH
-    assert out.endswith(".txt")
+    long_name = "a" * (MAX_FILENAME_LENGTH + 1) + ".txt"
+    with pytest.raises(ValueError, match="exceeds"):
+        sanitize_filename(long_name)
+
+
+def test_sanitize_filename_at_exact_limit():
+    """A name at exactly the limit is accepted."""
+    from drop_pensa.security import MAX_FILENAME_LENGTH, sanitize_filename
+    at_limit = "a" * MAX_FILENAME_LENGTH
+    assert sanitize_filename(at_limit) == at_limit
 
 
 def test_has_blocked_extension_case_insensitive():

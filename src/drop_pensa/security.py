@@ -92,16 +92,14 @@ def sanitize_filename(raw: str) -> str:
     # closing off homoglyph-style filename collisions.
     name = unicodedata.normalize("NFC", name)
 
-    # Truncate while preserving extension, if any.
+    # Reject over-long filenames rather than truncating.
+    #
+    # Silent truncation surprised callers and could collide stems that
+    # only differ past the cap (see issue #1). Rejecting outright is
+    # consistent with how every other invalid filename is handled here
+    # — we don't try to "fix" path traversal either.
     if len(name) > MAX_FILENAME_LENGTH:
-        # rsplit on the last dot to find the extension; leave room for it.
-        if "." in name[1:]:  # ignore leading-dot files like ".env"
-            stem, _, ext = name.rpartition(".")
-            ext = ext[:32]  # absurdly long extensions are themselves fishy
-            keep = MAX_FILENAME_LENGTH - len(ext) - 1
-            name = stem[:keep] + "." + ext
-        else:
-            name = name[:MAX_FILENAME_LENGTH]
+        raise ValueError(f"filename exceeds {MAX_FILENAME_LENGTH} characters")
 
     return name
 

@@ -203,3 +203,14 @@ def test_filename_mismatch_returns_404(client, upload_one):
     unknown = client.get("/f/AAAAAAAAAAAAA/whatever.txt")
     assert wrong.status_code == 404
     assert unknown.status_code == 404
+
+
+def test_filename_too_long_rejected_with_400(client):
+    """Filenames over 255 chars are rejected with 400 (issue #1)."""
+    long_name = "a" * 252 + ".txt"  # 256 chars
+    resp = client.post(
+        "/upload",
+        files={"file": (long_name, b"x", "application/octet-stream")},
+    )
+    assert resp.status_code == 400
+    assert "exceeds" in resp.json()["detail"]
