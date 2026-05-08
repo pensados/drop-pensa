@@ -77,8 +77,28 @@
   <ul>
     <li><code>404</code> — file not found, expired, or filename mismatch</li>
     <li><code>410</code> — one-shot file already consumed</li>
+    <li><code>416</code> — Range header invalid or unsatisfiable</li>
     <li><code>429</code> — rate limited (200 fetches/min per IP, 100/hour per file per IP)</li>
   </ul>
+
+  <h3>Range requests</h3>
+  <p>
+    Single byte ranges are supported per RFC 9110: <code>bytes=N-M</code>,
+    <code>bytes=N-</code>, and <code>bytes=-N</code>. The server advertises
+    support via <code>Accept-Ranges: bytes</code> in successful responses.
+    Multi-range requests (e.g. <code>bytes=0-9,20-29</code>) are not
+    supported and return 416.
+  </p>
+  <pre><code>curl -H "Range: bytes=0-1023" "https://drop.pensa.ar/f/&lt;id&gt;/&lt;name&gt;"
+# → 206 Partial Content
+#   Content-Range: bytes 0-1023/&lt;total&gt;
+#   Content-Length: 1024</code></pre>
+  <p class="note">
+    On a one-shot upload, a partial range request does <strong>not</strong>
+    consume the file — only a full read (no Range, or a Range covering
+    the whole file) consumes it. This makes range probes safe for
+    metadata reads (video/PDF headers).
+  </p>
 
   <h2 id="head">HEAD /f/{id}/{filename}</h2>
   <p>Same as GET but returns headers only. Useful for liveness probes.</p>

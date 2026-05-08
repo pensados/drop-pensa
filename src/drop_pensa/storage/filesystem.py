@@ -84,14 +84,37 @@ async def save_stream(
         raise
 
 
-async def stream_file(path: Path) -> AsyncIterator[bytes]:
-    """Yield a file's contents in chunks for streaming responses."""
+async def stream_file(
+    path: Path,
+    start: int = 0,
+    length: int | None = None,
+) -> AsyncIterator[bytes]:
+    """
+    Yield a file's contents in chunks for streaming responses.
+
+    Args:
+        path: file to stream.
+        start: byte offset to start at (0 = beginning).
+        length: how many bytes to emit. None means "until EOF".
+
+    Range-aware: pass `start` and `length` to serve a partial range
+    without loading the whole file. The caller is responsible for
+    range validation; this function trusts its inputs.
+    """
     with path.open("rb") as f:
+        if start:
+            f.seek(start)
+        remaining = length  # None means unbounded
         while True:
-            chunk = f.read(CHUNK_SIZE)
+            to_read = CHUNK_SIZE if remaining is None else min(CHUNK_SIZE, remaining)
+            if to_read <= 0:
+                break
+            chunk = f.read(to_read)
             if not chunk:
                 break
             yield chunk
+            if remaining is not None:
+                remaining -= len(chunk)
 
 
 def delete_file(storage_dir: Path, file_id: str) -> bool:

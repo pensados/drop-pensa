@@ -9,6 +9,7 @@ from drop_pensa import ratelimit
 from drop_pensa.clientinfo import client_ip
 from drop_pensa.config import settings
 from drop_pensa.logging_setup import log_event, log_warning
+from drop_pensa.range_parser import RangeNotSatisfiable, parse_range_header
 from drop_pensa.storage.db import DbStore, get_session
 from drop_pensa.storage.filesystem import storage_path_for, stream_file
 from drop_pensa.storage.memstore import now_utc
@@ -82,7 +83,15 @@ async def fetch(
     render: int = Query(0),
     session: Session = Depends(get_session),
 ):
-    """Stream the file with the requested disposition."""
+    """
+    Stream the file. Supports HTTP Range requests (RFC 9110 §14).
+
+    For one-shot files (issue #3, option B): a Range request that does
+    NOT cover the full file leaves the one-shot un-consumed — partial
+    reads are common for video/PDF metadata probes and shouldn't burn
+    the shot. A Range that covers the whole file, or a regular GET,
+    consumes it normally.
+    """
     ip = client_ip(request)
     _enforce_fetch_limits(ip, file_id)
 
@@ -93,17 +102,52 @@ async def fetch(
     if not path.exists():
         raise HTTPException(status_code=404, detail="not found")
 
+    # Parse optional Range header. Absent → full file. Malformed or
+    # out-of-bounds → 416.
+    try:
+        byte_range = parse_range_header(
+            request.headers.get("range"),
+            total=meta.size,
+        )
+    except RangeNotSatisfiable as e:
+        log_warning("fetch_range_invalid", ip=ip, file_id=file_id, reason=str(e))
+        return Response(
+            status_code=416,
+            headers={
+                "Content-Range": f"bytes */{meta.size}",
+                "Accept-Ranges": "bytes",
+            },
+        )
+
     content_type = _safe_content_type(meta.content_type, bool(render))
     disposition_kind = "attachment" if download else "inline"
-    headers = {
-        "Content-Length": str(meta.size),
+
+    base_headers = {
         "Content-Disposition": f'{disposition_kind}; filename="{meta.filename}"',
         "X-Content-Type-Options": "nosniff",
+        "Accept-Ranges": "bytes",
         "Cache-Control": "public, max-age=3600" if not meta.one_shot else "no-store",
     }
 
+    if byte_range is None:
+        # Full body, 200.
+        consumed = True  # whole file served → one-shot consumed
+        status = 200
+        stream_kwargs = {}
+        body_length = meta.size
+    else:
+        # Partial body, 206. Only consume the one-shot if the range
+        # covers the entire file (option B from issue #3 discussion).
+        consumed = byte_range.is_full_file
+        status = 206
+        stream_kwargs = {"start": byte_range.start, "length": byte_range.length}
+        body_length = byte_range.length
+        base_headers["Content-Range"] = byte_range.content_range_header()
+
+    base_headers["Content-Length"] = str(body_length)
+
     store.mark_fetched(file_id)
-    if meta.one_shot:
+    if meta.one_shot and consumed:
         store.soft_delete(file_id)
 
     log_event(
@@ -111,14 +155,18 @@ async def fetch(
         ip=ip,
         file_id=file_id,
         size=meta.size,
+        served=body_length,
         one_shot=meta.one_shot,
+        consumed=consumed if meta.one_shot else None,
+        partial=byte_range is not None,
         download=bool(download),
     )
 
     return StreamingResponse(
-        stream_file(path),
+        stream_file(path, **stream_kwargs),
+        status_code=status,
         media_type=content_type,
-        headers=headers,
+        headers=base_headers,
     )
 
 
@@ -147,5 +195,6 @@ async def head(
             "Content-Type": content_type,
             "Content-Disposition": f'{disposition_kind}; filename="{meta.filename}"',
             "X-Content-Type-Options": "nosniff",
+            "Accept-Ranges": "bytes",
         },
     )
