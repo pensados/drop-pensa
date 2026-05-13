@@ -1,7 +1,7 @@
 # drop-pensa
 
 [![ci](https://github.com/pensados/drop-pensa/actions/workflows/ci.yml/badge.svg)](https://github.com/pensados/drop-pensa/actions/workflows/ci.yml)
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![license: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 Instant file drop service. Upload a file, get a temporary public URL,
 share or fetch it programmatically. Files auto-expire on a window you
@@ -270,11 +270,11 @@ What it's **not** designed for:
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE).
 
 ---
 
 ## Author
 
-Built by [Carlos Torres Pensa](https://pensa.com.ar). Part of the
+Built by [Carlos Javier Torres Pensa](https://pensa.com.ar). Part of the
 [pensados](https://github.com/pensados) projects.

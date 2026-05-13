@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Instant file drop service with web UI"
 requires-python = ">=3.12"
 authors = [{name = "Carlos Pensa", email = "carlos@pensa.com.ar"}]
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 
 dependencies = [
     "fastapi==0.104.1",
